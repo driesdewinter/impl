@@ -4,12 +4,11 @@ project (impl)
 
 include_directories(include)
 
-set (CMAKE_CXX_FLAGS "-std=c++17 -O3 -Wall -Wextra -pthread -g")
+set(CMAKE_CXX_FLAGS "-std=c++17 -O3 -Wall -Wextra -g -pthread")
 
 add_executable(trials trials.cpp)
 target_link_libraries(trials dl)
 
-add_executable(unit_test_binary test/perftest.cpp)
-target_link_libraries(unit_test_binary gtest gtest_main)
+enable_testing()
 
-add_test(unit_tests unit_test_binary)
+add_subdirectory(test)

@@ -1,69 +1,12 @@
 #include "ddw/impl.hpp"
+#include "fifo.h"
 #include <gtest/gtest.h>
-#include <boost/lockfree/spsc_queue.hpp>
 #include <functional>
 #include <thread>
 #include <chrono>
 
 using namespace std::literals::chrono_literals;
 using namespace std::literals::string_literals;
-
-template<typename T, std::size_t N = 65536, std::size_t B = 256>
-struct fifo
-{
-	typename std::aligned_storage<sizeof(T), alignof(T)>::type data[N];
-	uint8_t padding1[64];
-	std::size_t head = 0;
-	uint8_t padding2[64];
-	std::size_t new_head = 0;
-	uint8_t padding3[64];
-	std::size_t tail = 0;
-	uint8_t padding4[64];
-	std::size_t new_tail = 0;
-
-	bool full() const
-	{
-		return (new_tail + 1) % N == head;
-	}
-
-	template<typename... Args>
-	void push(Args&&... args)
-	{
-		new (&data[new_tail]) T(std::forward<Args>(args)...);
-		new_tail = (new_tail + 1) % N;
-		std::size_t taildiff = (N + new_tail - tail) % N;
-		if (taildiff >= B) flush();
-	}
-
-	void flush()
-	{
-		atomic_thread_fence(std::memory_order_release);
-		tail = new_tail;
-	}
-
-	bool empty() const
-	{
-		return new_head == tail;
-	}
-
-	T& front()
-	{
-		atomic_thread_fence(std::memory_order_acquire);
-		return *reinterpret_cast<T*>(&data[new_head]);
-	}
-
-	void pop()
-	{
-		atomic_thread_fence(std::memory_order_acquire);
-		reinterpret_cast<T*>(&data[new_head])->~T();
-		new_head = (new_head + 1) % N;
-		std::size_t headdiff = (N + new_head - head) % N;
-		if (headdiff >= B)
-		{
-			head = new_head;
-		}
-	}
-};
 
 struct msg
 {
@@ -121,6 +64,7 @@ struct perftest_ctx
 	std::string description;
 	fifo<T> queue;
 	bool done = false;
+	int expected_counter = 0;
 	int counter = 0;
 
 	perftest_ctx(std::string desc) : description(desc) {}
@@ -134,6 +78,7 @@ struct perftest_ctx
 		{
 			while (std::chrono::steady_clock::now() - t0 < target_duration)
 			{
+				expected_counter += interval_count;
 				for (int i = 0; i < interval_count; i++)
 				{
 					while (queue.full())
@@ -162,6 +107,8 @@ struct perftest_ctx
 		auto t1 = std::chrono::steady_clock::now();
 
 		std::cout << "fifo holding " << description << " objects processed " << counter * 1s / (t1 - t0) << " msgs per second.\n";
+
+		ASSERT_EQ(expected_counter, counter);
 	}
 };
 
@@ -208,6 +155,7 @@ TEST(perftest, medium_std_function_trick)
 	ctx.run([&ctx]() { ctx.queue.push([m = count_msg<medium_capture>(ctx.counter)]() mutable -> msg& { return m; }); },
 			[&ctx]() { ctx.queue.push([m = done_msg(ctx.done)]() mutable -> msg& { return m; }); },
 			[](std::function<msg&()>& m) { m().handle(); });
+	ASSERT_TRUE(true);
 }
 TEST(perftest, medium_impl)
 {
