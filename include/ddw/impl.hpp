@@ -13,8 +13,7 @@ namespace detail
 {
 
 template<typename T>
-struct impl_raw_ptr
-{
+struct impl_raw_ptr {
   using interface_type = T;
 
   interface_type* get()
@@ -40,63 +39,63 @@ struct impl_small_value
   static const std::size_t capacity = Capacity;
   static const std::size_t alignment = Alignment;
   using this_type = impl_small_value<interface_type, capacity, alignment>;
-    using value_storage = typename std::aligned_storage<capacity, alignment>::type;
+  using value_storage = typename std::aligned_storage<capacity, alignment>::type;
 
-    template<typename U>
+  template<typename U>
   struct cbs
   {
     using impl_type = U;
 
     static void move(value_storage* dst, value_storage* src)
     {
-        new (dst) impl_type(reinterpret_cast<impl_type&&>(*src));
+      new (dst) impl_type(reinterpret_cast<impl_type&&>(*src));
     }
   };
 
-    interface_type* get()
-    {
-      return reinterpret_cast<interface_type*>(&value);
-    }
+  interface_type* get()
+  {
+    return reinterpret_cast<interface_type*>(&value);
+  }
 
-    const interface_type* get() const
-    {
-      return reinterpret_cast<const interface_type*>(&value);
-    }
+  const interface_type* get() const
+  {
+    return reinterpret_cast<const interface_type*>(&value);
+  }
 
-    impl_small_value() = delete;
-    impl_small_value(const this_type&) = delete;
+  impl_small_value() = delete;
+  impl_small_value(const this_type&) = delete;
 
-    template<typename U>
-    impl_small_value(U&& v)
-    {
-      using impl_type = std::remove_const_t<std::remove_reference_t<U>>;
-      move = cbs<impl_type>::move;
-      new (&value) impl_type(std::forward<U>(v));
-    }
+  template<typename U>
+  impl_small_value(U&& v)
+  {
+    using impl_type = std::remove_const_t<std::remove_reference_t<U>>;
+    move = cbs<impl_type>::move;
+    new (&value) impl_type(std::forward<U>(v));
+  }
 
-    template<typename U, typename... Args>
-    impl_small_value(U*, Args&&... args)
-    {
-      using impl_type = U;
-      move = cbs<impl_type>::move;
-      new (&value) impl_type(std::forward<Args>(args)...);
-    }
+  template<typename U, typename... Args>
+  impl_small_value(U*, Args&&... args)
+  {
+    using impl_type = U;
+    move = cbs<impl_type>::move;
+    new (&value) impl_type(std::forward<Args>(args)...);
+  }
 
-    template<typename U, std::size_t C, std::size_t A>
-    impl_small_value(impl_small_value<U, C, A>&& other)
-    {
-      move = other.move;
-      move(&value, &other.value);
-    }
+  template<typename U, std::size_t C, std::size_t A>
+  impl_small_value(impl_small_value<U, C, A>&& other)
+  {
+    move = other.move;
+    move(&value, &other.value);
+  }
 
-    ~impl_small_value()
-    {
-      get()->~interface_type();
-    }
+  ~impl_small_value()
+  {
+    get()->~interface_type();
+  }
 
 private:
   void (*move)(value_storage* dst, value_storage* src);
-    value_storage value;
+  value_storage value;
 };
 
 template<typename U>
@@ -121,6 +120,9 @@ template<typename U, typename... Args>
 struct impl_emplacement
 {
   using impl_type = U;
+
+  impl_emplacement(Args&&... a) : args(std::forward<Args>(a)...) {}
+
   std::tuple<Args&&...> args;
 };
 
@@ -184,58 +186,58 @@ public:
   template<typename U>
   void reset_reference(U& v)
   {
-      using impl_type = std::remove_const_t<std::remove_reference_t<U>>;
-      static_assert(std::is_base_of_v<T, impl_type>, "T is not a base of U");
+    static_assert(std::is_base_of_v<T, U>, "T is not a base of U");
     _d.template emplace<raw_type>(&v);
   }
 
   template<typename U>
   void reset_value(U&& v)
   {
-      using impl_type = std::remove_const_t<std::remove_reference_t<U>>;
-      static_assert(std::is_base_of_v<T, impl_type>, "T is not a base of U");
-      if constexpr (sizeof(impl_type) <= capacity and alignof(impl_type) <= alignment)
-        reset_small_value(std::forward<U>(v));
-      else
-        reset_big_value(std::forward<U>(v));
+    using impl_type = std::remove_const_t<std::remove_reference_t<U>>;
+    if constexpr (sizeof(impl_type) <= capacity and alignof(impl_type) <= alignment)
+      reset_small_value(std::forward<U>(v));
+    else
+      reset_big_value(std::forward<U>(v));
   }
 
   template<typename U>
   void reset_small_value(U&& v)
   {
-      using impl_type = std::remove_const_t<std::remove_reference_t<U>>;
-      static_assert(std::is_base_of_v<T, impl_type>, "T is not a base of U");
-      static_assert(sizeof(impl_type) <= capacity, "capacity too small to store U");
-      static_assert(alignof(impl_type) <= alignment, "alignment too small to store U");
+    using impl_type = std::remove_const_t<std::remove_reference_t<U>>;
+    static_assert(std::is_move_constructible_v<U>, "U is not move-constructible");
+    static_assert(std::is_base_of_v<T, impl_type>, "T is not a base of U");
+    static_assert(sizeof(impl_type) <= capacity, "capacity too small to store U");
+    static_assert(alignof(impl_type) <= alignment, "alignment too small to store U");
     _d.template emplace<small_type>(std::forward<U>(v));
   }
 
   template<typename U>
   void reset_big_value(U&& v)
   {
-      using impl_type = std::remove_const_t<std::remove_reference_t<U>>;
-      static_assert(std::is_base_of_v<T, impl_type>, "T is not a base of U");
+    using impl_type = std::remove_const_t<std::remove_reference_t<U>>;
+    static_assert(std::is_move_constructible_v<U>, "U is not move-constructible");
+    static_assert(std::is_base_of_v<T, impl_type>, "T is not a base of U");
     _d.template emplace<unique_type>(std::make_unique<impl_type>(std::forward<U>(v)));
   }
 
   template<typename U>
   void reset_unique(std::unique_ptr<U>&& v)
   {
-      static_assert(std::is_base_of_v<T, U>, "T is not a base of U");
+    static_assert(std::is_base_of_v<T, U>, "T is not a base of U");
     _d.template emplace<unique_type>(std::move(v));
   }
 
   template<typename U>
-  void reset_shared(std::shared_ptr<U>&& v)
+  void reset_shared(std::shared_ptr<U> v)
   {
-      static_assert(std::is_base_of_v<T, U>, "T is not a base of U");
+    static_assert(std::is_base_of_v<T, U>, "T is not a base of U");
     _d.template emplace<shared_type>(std::move(v));
   }
 
   template<typename U, std::size_t C, std::size_t A>
   void reset_impl(impl<U, C, A>&& v)
   {
-      static_assert(std::is_base_of_v<T, U>, "T is not a base of U");
+    static_assert(std::is_base_of_v<T, U>, "T is not a base of U");
     std::visit([this](auto &d) {
       auto_selector<std::remove_reference_t<decltype(d)>>::reset(this, std::move(d));
     }, v._d);
@@ -244,26 +246,28 @@ public:
   template<typename U, typename... Args>
   void emplace(Args&&... args)
   {
-      static_assert(std::is_base_of_v<T, U>, "T is not a base of U");
-      if constexpr (sizeof(U) <= capacity and alignof(U) <= alignment)
-        emplace_small<U>(std::forward<Args>(args)...);
-      else
-        emplace_big<U>(std::forward<Args>(args)...);
+    if constexpr (sizeof(U) <= capacity
+        and alignof(U) <= alignment
+        and std::is_move_constructible_v<U>)
+      emplace_small<U>(std::forward<Args>(args)...);
+    else
+      emplace_big<U>(std::forward<Args>(args)...);
   }
 
   template<typename U, typename... Args>
   void emplace_small(Args&&... args)
   {
-      static_assert(std::is_base_of_v<T, U>, "T is not a base of U");
-      static_assert(sizeof(U) <= capacity, "capacity too small to store U");
-      static_assert(alignof(U) <= alignment, "alignment too small to store U");
+    static_assert(std::is_base_of_v<T, U>, "T is not a base of U");
+    static_assert(std::is_move_constructible_v<U>, "U is not move-constructible");
+    static_assert(sizeof(U) <= capacity, "capacity too small to store U");
+    static_assert(alignof(U) <= alignment, "alignment too small to store U");
     _d.template emplace<small_type>(static_cast<U*>(nullptr), std::forward<Args>(args)...);
   }
 
   template<typename U, typename... Args>
   void emplace_big(Args&&... args)
   {
-      static_assert(std::is_base_of_v<T, U>, "T is not a base of U");
+    static_assert(std::is_base_of_v<T, U>, "T is not a base of U");
     _d.template emplace<unique_type>(std::make_unique<U>(std::forward<Args>(args)...));
   }
 
@@ -291,15 +295,21 @@ private:
   template<typename U, std::size_t C, std::size_t A>
   void reset_impl_small_value(detail::impl_small_value<U, C, A>&& v)
   {
-      using impl_type = U;
-      static_assert(std::is_base_of_v<T, impl_type>, "T is not a base of impl_type");
-      static_assert(C <= capacity, "capacity too small to store impl_type");
-      static_assert(A <= alignment, "alignment too small to store impl_type");
+    using impl_type = U;
+    static_assert(std::is_base_of_v<T, impl_type>, "T is not a base of U");
+    static_assert(C <= capacity, "capacity too small to store U");
+    static_assert(A <= alignment, "alignment too small to store U");
     _d.template emplace<small_type>(std::move(v));
   }
 
   template<typename U, typename = void>
-  struct auto_selector {};
+  struct auto_selector
+  {
+    static void reset(this_type*, U)
+    {
+      static_assert(std::is_base_of_v<interface_type, U>, "T is not a base of U");
+    }
+  };
 
   template<typename U>
   struct auto_selector<U&, std::enable_if_t<
@@ -404,7 +414,7 @@ private:
     }
   };
 
-    std::variant<raw_type, small_type, unique_type, shared_type> _d;
+  std::variant<raw_type, small_type, unique_type, shared_type> _d;
 };
 
 template<typename U>
@@ -428,7 +438,7 @@ auto impl_by_reference(U&& v)
 template<typename U, typename... Args>
 auto impl_emplace(Args&&... args)
 {
-  return detail::impl_emplacement<U, Args...>{std::forward_as_tuple(args...)};
+  return detail::impl_emplacement<U, Args...>(std::forward<Args...>(args)...);
 }
 
 }
