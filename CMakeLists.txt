@@ -12,3 +12,8 @@ target_link_libraries(trials dl)
 enable_testing()
 
 add_subdirectory(test)
+
+include(GNUInstallDirs)
+
+install(FILES include/ddw/impl.hpp
+        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/ddw/)
