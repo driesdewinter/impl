@@ -33,7 +33,7 @@ private:
 	interface_type* ptr;
 };
 
-template<typename T, std::size_t Capacity = 32, std::size_t Alignment = sizeof(void*)>
+template<typename T, std::size_t Capacity = 32, std::size_t Alignment = alignof(void*)>
 struct impl_small_value
 {
 	using interface_type = T;
@@ -119,13 +119,6 @@ struct impl_forced_reference
 
 template<typename U, typename... Args>
 struct impl_emplacement
-{
-	using impl_type = U;
-	std::tuple<Args&&...> args;
-};
-
-template<typename U, typename... Args>
-struct impl_emplacement_small
 {
 	using impl_type = U;
 	std::tuple<Args&&...> args;
@@ -424,17 +417,6 @@ private:
 		}
 	};
 
-	template<typename U, typename... Args>
-	struct auto_selector<detail::impl_emplacement_small<U, Args...>>
-	{
-		static void reset(this_type* pthis, detail::impl_emplacement_small<U, Args...>&& v)
-		{
-			std::apply([pthis](Args&&... args) {
-				pthis->template emplace_small<U>(std::forward<Args>(args)...);
-			}, std::move(v.args));
-		}
-	};
-
     std::variant<raw_type, small_type, unique_type, shared_type> _d;
 };
 
@@ -460,12 +442,6 @@ template<typename U, typename... Args>
 auto impl_emplace(Args&&... args)
 {
 	return detail::impl_emplacement<U, Args...>{std::forward_as_tuple(args...)};
-}
-
-template<typename U, typename... Args>
-auto impl_emplace_small(Args&&... args)
-{
-	return detail::impl_emplacement_small<U, Args...>{std::forward_as_tuple(args...)};
 }
 
 }
