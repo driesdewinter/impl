@@ -303,8 +303,7 @@ private:
 
 	template<typename U>
 	struct auto_selector<U&, std::enable_if_t<
-			std::is_base_of_v<interface_type, U>
-			and not std::is_const_v<U> and not std::is_copy_constructible_v<U>>>
+			std::is_base_of_v<interface_type, U>>>
 	{
 		static void reset(this_type* pthis, U& v)
 		{
@@ -314,23 +313,11 @@ private:
 
 	template<typename U>
 	struct auto_selector<U, std::enable_if_t<
-			std::is_base_of_v<interface_type, U>
-			and (std::is_copy_constructible_v<U> or std::is_move_constructible_v<U>)>>
+			std::is_base_of_v<interface_type, U>>>
 	{
 		static void reset(this_type* pthis, U&& v)
 		{
 			pthis->reset_value(std::move(v));
-		}
-	};
-
-	template<typename U>
-	struct auto_selector<U&, std::enable_if_t<
-			std::is_base_of_v<interface_type, U>
-			and std::is_copy_constructible_v<U>>>
-	{
-		static void reset(this_type* pthis, U& v)
-		{
-			pthis->reset_value(v);
 		}
 	};
 
