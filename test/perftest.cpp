@@ -8,6 +8,9 @@
 using namespace std::literals::chrono_literals;
 using namespace std::literals::string_literals;
 
+namespace
+{
+
 struct msg
 {
   virtual ~msg() {}
@@ -55,8 +58,8 @@ struct done_msg : msg
   }
 };
 
-static const std::chrono::nanoseconds target_duration = 1s;
-static const int interval_count = 10000;
+const std::chrono::nanoseconds target_duration = 1s;
+const int interval_count = 10000;
 
 template<typename T>
 struct perftest_ctx
@@ -111,6 +114,8 @@ struct perftest_ctx
     ASSERT_EQ(expected_counter, counter);
   }
 };
+
+}
 
 TEST(perftest, small_impl_emplace)
 {

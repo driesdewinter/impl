@@ -96,6 +96,9 @@ struct impl_small_value
 private:
   void (*move)(value_storage* dst, value_storage* src);
   value_storage value;
+
+  template<typename U, std::size_t C, std::size_t A>
+  friend class impl_small_value;
 };
 
 template<typename U>
@@ -238,6 +241,8 @@ public:
   void reset_impl(impl<U, C, A>&& v)
   {
     static_assert(std::is_base_of_v<T, U>, "T is not a base of U");
+    static_assert(C == capacity, "cannot convert between different capacities");
+    static_assert(A == alignment, "cannot convert between different alignments");
     std::visit([this](auto &d) {
       auto_selector<std::remove_reference_t<decltype(d)>>::reset(this, std::move(d));
     }, v._d);
@@ -278,7 +283,7 @@ public:
 
   const interface_type* get() const
   {
-    return std::visit([](const auto& d) { return d.get(); }, _d);
+    return std::visit([](const auto& d) -> const interface_type* { return d.get(); }, _d);
   }
 
   bool has_impl() const
@@ -415,6 +420,9 @@ private:
   };
 
   std::variant<raw_type, small_type, unique_type, shared_type> _d;
+
+  template<typename U, std::size_t C, std::size_t A>
+  friend class impl;
 };
 
 template<typename U>
